@@ -784,7 +784,7 @@ public class TaskManagerTest {
 
         mockTaskManager.scheduleMoreWork();
 
-        //verify(mockTaskManager, times(expectedNumberOfCalls)).createAndQueueNextTaskWorker();
+        verify(mockTaskManager, times(expectedNumberOfCalls)).createAndQueueNextTaskWorker();
         assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS));
         assertThat(mockTaskManager.workTimer, notNullValue());
     }
@@ -818,7 +818,12 @@ public class TaskManagerTest {
         workItem.setState(WorkItemState.READY);
         workItem.setTaskType(taskType);
 
-        TaskWorker worker = new TaskWorker();
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
 
         WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
         taskManager.workItemDatabaseHelper = mockDb;
@@ -839,7 +844,7 @@ public class TaskManagerTest {
         assertThat(success, is(true));
 
         ArgumentCaptor workItemCaptor = ArgumentCaptor.forClass(InternalWorkItem.class);
-        verify(mockDb).updateWorkItem((InternalWorkItem)workItemCaptor.capture());
+        verify(mockDb).updateWorkItem((InternalWorkItem) workItemCaptor.capture());
 
         InternalWorkItem updatedWorkItem = (InternalWorkItem)workItemCaptor.getValue();
         assertThat(updatedWorkItem.getState(), is(WorkItemState.EXECUTING));
@@ -848,7 +853,7 @@ public class TaskManagerTest {
         verify(mockExecutorService).execute((TaskWorker)taskWorkerCaptor.capture());
 
         TaskWorker executedTaskWorker = (TaskWorker)taskWorkerCaptor.getValue();
-        assertThat(executedTaskWorker.taskFinishedDelegate, notNullValue());
+        assertThat(executedTaskWorker.taskFinishedDelegate(), notNullValue());
 
         verify(mockManager).taskWorkerForWorkItem(Matchers.any(InternalWorkItem.class));
         verify(mockDb).getNextWorkItemForTaskTypes(taskTypes, false);
@@ -868,7 +873,12 @@ public class TaskManagerTest {
         workItem.setState(WorkItemState.READY);
         workItem.setTaskType(taskType);
 
-        TaskWorker worker = new TaskWorker();
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
 
         WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
         taskManager.workItemDatabaseHelper = mockDb;
@@ -898,7 +908,7 @@ public class TaskManagerTest {
         verify(mockExecutorService).execute((TaskWorker)taskWorkerCaptor.capture());
 
         TaskWorker executedTaskWorker = (TaskWorker)taskWorkerCaptor.getValue();
-        assertThat(executedTaskWorker.taskFinishedDelegate, notNullValue());
+        assertThat(executedTaskWorker.taskFinishedDelegate(), notNullValue());
 
         verify(mockManager).taskWorkerForWorkItem(Matchers.any(InternalWorkItem.class));
         verify(mockDb).getNextWorkItemForTaskTypes(taskTypes, true);
@@ -954,8 +964,13 @@ public class TaskManagerTest {
 
         boolean success = true;
         InternalWorkItem workItem = new InternalWorkItem();
-        TaskWorker worker = new TaskWorker();
-        worker.workItem = workItem;
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
+        worker.setWorkItem(workItem);
 
         mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
 
@@ -983,8 +998,13 @@ public class TaskManagerTest {
         workItem.setMaxRetries(maxRetryCount);
         workItem.setRetryCount(currentRetryCount);
         workItem.setState(WorkItemState.EXECUTING);
-        TaskWorker worker = new TaskWorker();
-        worker.workItem = workItem;
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
+        worker.setWorkItem(workItem);
 
         mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
 
@@ -1025,8 +1045,13 @@ public class TaskManagerTest {
         workItem.setRetryCount(currentRetryCount);
         workItem.setState(WorkItemState.EXECUTING);
         workItem.setShouldHold(false);
-        TaskWorker worker = new TaskWorker();
-        worker.workItem = workItem;
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
+        worker.setWorkItem(workItem);
 
         mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
 
@@ -1061,8 +1086,13 @@ public class TaskManagerTest {
         workItem.setRetryCount(currentRetryCount);
         workItem.setState(WorkItemState.EXECUTING);
         workItem.setShouldHold(true);
-        TaskWorker worker = new TaskWorker();
-        worker.workItem = workItem;
+        TaskWorker worker = new TaskWorker() {
+            @Override
+            public void run() {
+
+            }
+        };
+        worker.setWorkItem(workItem);
 
         mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
 

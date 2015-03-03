@@ -3,6 +3,8 @@ package com.zackliston.taskmanager;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
@@ -32,6 +34,7 @@ public class TaskManager implements TaskFinishedInterface {
     protected ExecutorService executorService;
     protected ExecutorService backgroundService;
     protected Handler mainHandler;
+    protected BroadcastReceiver broadcastReceiver;
     protected Timer workTimer;
 
     protected ConnectivityManager connectivityManager;
@@ -61,10 +64,21 @@ public class TaskManager implements TaskFinishedInterface {
         connectivityManager = (ConnectivityManager)context.getSystemService(context.CONNECTIVITY_SERVICE);
 
         registeredManagers = new HashMap<>();
-
         isRunning = true;
         isWaitingForStopCompletion = false;
         countOfCurrentlyRunningTasks = 0;
+
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                synchronized (ourInstance) {
+                    scheduleMoreWork();
+                }
+            }
+        };
+
+        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        context.registerReceiver(broadcastReceiver, filter);
     }
     //endregion
 
@@ -314,7 +328,7 @@ public class TaskManager implements TaskFinishedInterface {
         workItemDatabaseHelper.updateWorkItem(workItem);
 
         TaskWorker worker = managerForTaskType.taskWorkerForWorkItem(workItem);
-        worker.taskFinishedDelegate = this;
+        worker.setTaskFinishedDelegate(this);
 
         executorService.execute(worker);
 
@@ -327,9 +341,9 @@ public class TaskManager implements TaskFinishedInterface {
         synchronized (this) {
             countOfCurrentlyRunningTasks--;
             if (success) {
-                workItemDatabaseHelper.deleteWorkItem(taskWorker.workItem);
+                workItemDatabaseHelper.deleteWorkItem(taskWorker.workItem());
             } else {
-                InternalWorkItem workItem = taskWorker.workItem;
+                InternalWorkItem workItem = taskWorker.workItem();
                 int oldRetryCount = workItem.getRetryCount();
                 workItem.setRetryCount(oldRetryCount+1);
 

@@ -19,6 +19,8 @@ import org.robolectric.annotation.Config;
 
 import android.os.Handler;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +36,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class TaskManagerTest {
 
     private TaskManager taskManager;
+
     @Before
     public void setUp() throws Exception {
         Context mockContext = mock(Context.class);
@@ -57,7 +60,7 @@ public class TaskManagerTest {
         assertThat(taskManager.mainHandler, notNullValue());
         assertThat(taskManager.connectivityManager, notNullValue());
 
-        assertThat("Is running",taskManager.isRunning);
+        assertThat("Is running", taskManager.isRunning);
         assertThat("Is not waiting", taskManager.isWaitingForStopCompletion == false);
         assertThat(taskManager.registeredManagers, notNullValue());
     }
@@ -78,7 +81,7 @@ public class TaskManagerTest {
         assertThat("Is not waiting", mockTaskManager.isWaitingForStopCompletion == false);
 
         verify(mockService).execute((Runnable) runnableCaptor.capture());
-        Runnable runnable = (Runnable)runnableCaptor.getValue();
+        Runnable runnable = (Runnable) runnableCaptor.getValue();
         runnable.run();
 
         verify(mockTaskManager).scheduleMoreWork();
@@ -141,11 +144,11 @@ public class TaskManagerTest {
 
         verify(mockNetworkBlock).run();
         verify(mockExecutorService).shutdownNow();
-        verify(mockBackground).execute((Runnable)runnableCaptor.capture());
+        verify(mockBackground).execute((Runnable) runnableCaptor.capture());
         verify(mockMainHanlder, never()).post(mockCompletionBlock);
         assertThat("Is waiting", taskManager.isWaitingForStopCompletion);
 
-        Runnable waitRunnable = (Runnable)runnableCaptor.getValue();
+        Runnable waitRunnable = (Runnable) runnableCaptor.getValue();
         waitRunnable.run();
 
         assertThat("Is not waiting", taskManager.isWaitingForStopCompletion == false);
@@ -188,7 +191,7 @@ public class TaskManagerTest {
 
         assertThat("Is running", mockTaskManager.isRunning);
         verify(mockBackground).execute((Runnable) runnableCaptor.capture());
-        Runnable waitRunnable = (Runnable)runnableCaptor.getValue();
+        Runnable waitRunnable = (Runnable) runnableCaptor.getValue();
 
         verify(mockTaskManager, never()).scheduleMoreWork();
 
@@ -227,10 +230,10 @@ public class TaskManagerTest {
 
         assertThat(success, is(true));
 
-        verify(mockDb).addNewWorkItem((InternalWorkItem)workItemCaptor.capture());
+        verify(mockDb).addNewWorkItem((InternalWorkItem) workItemCaptor.capture());
         verify(mockTaskManager).scheduleMoreWork();
 
-        InternalWorkItem workItem = (InternalWorkItem)workItemCaptor.getValue();
+        InternalWorkItem workItem = (InternalWorkItem) workItemCaptor.getValue();
         assertThat(workItem.getTaskType(), is(taskType));
         assertThat(workItem.getMajorPriority(), is(major));
         assertThat(workItem.getMinorPriority(), is(minor));
@@ -242,9 +245,9 @@ public class TaskManagerTest {
         assertThat(workItem.isShouldHold(), is(shouldHold));
 
         long milliseconds = System.currentTimeMillis();
-        int timeDifference = (int)milliseconds - workItem.getTimeCreated();
+        int timeDifference = (int) milliseconds - workItem.getTimeCreated();
 
-        assertThat("Time is almost the same", timeDifference<100);
+        assertThat("Time is almost the same", timeDifference < 100);
     }
 
     @Test
@@ -276,10 +279,10 @@ public class TaskManagerTest {
 
         assertThat(success, is(false));
 
-        verify(mockDb).addNewWorkItem((InternalWorkItem)workItemCaptor.capture());
+        verify(mockDb).addNewWorkItem((InternalWorkItem) workItemCaptor.capture());
         verify(mockTaskManager, never()).scheduleMoreWork();
 
-        InternalWorkItem workItem = (InternalWorkItem)workItemCaptor.getValue();
+        InternalWorkItem workItem = (InternalWorkItem) workItemCaptor.getValue();
         assertThat(workItem.getTaskType(), is(taskType));
         assertThat(workItem.getMajorPriority(), is(major));
         assertThat(workItem.getMinorPriority(), is(minor));
@@ -291,9 +294,9 @@ public class TaskManagerTest {
         assertThat(workItem.isShouldHold(), is(shouldHold));
 
         long milliseconds = System.currentTimeMillis();
-        int timeDifference = (int)milliseconds - workItem.getTimeCreated();
+        int timeDifference = (int) milliseconds - workItem.getTimeCreated();
 
-        assertThat("Time is almost the same", timeDifference<100);
+        assertThat("Time is almost the same", timeDifference < 100);
     }
 
     @Test
@@ -350,5 +353,406 @@ public class TaskManagerTest {
         verify(mockTaskManager, never()).scheduleMoreWork();
     }
 
+    @Test
+    public void testQueueTaskArraySuccess() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        when(mockDb.addNewWorkItem(Matchers.any(InternalWorkItem.class))).thenReturn(true);
+
+        ArgumentCaptor workItemCaptor1 = ArgumentCaptor.forClass(InternalWorkItem.class);
+
+        String taskType1 = "taskT";
+        int major1 = 32;
+        int minor1 = 2;
+        JSONObject json1 = new JSONObject("{key:value}");
+        boolean requiresInternet1 = true;
+        int maxRetryCount1 = 3242234;
+        boolean shouldHold1 = true;
+
+        Task task1 = new Task(taskType1, json1);
+        task1.setMajorPriority(major1);
+        task1.setMinorPriority(minor1);
+        task1.setRequiresInternet(requiresInternet1);
+        task1.setMaxRetries(maxRetryCount1);
+        task1.setShouldHoldAfterMaxRetries(shouldHold1);
+
+        String taskType2 = "taaaskT";
+        int major2 = 332;
+        int minor2 = 5632;
+        JSONObject json2 = new JSONObject("{key:other}");
+        boolean requiresInternet2 = false;
+        int maxRetryCount2 = 3234;
+        boolean shouldHold2 = false;
+
+        Task task2 = new Task(taskType2, json2);
+        task2.setMajorPriority(major2);
+        task2.setMinorPriority(minor2);
+        task2.setRequiresInternet(requiresInternet2);
+        task2.setMaxRetries(maxRetryCount2);
+        task2.setShouldHoldAfterMaxRetries(shouldHold2);
+
+        ArrayList<Task> taskArray = new ArrayList<>();
+        taskArray.add(task1);
+        taskArray.add(task2);
+
+        boolean success = mockTaskManager.queueTaskArray(taskArray);
+
+        assertThat(success, is(true));
+
+        verify(mockDb, times(2)).addNewWorkItem((InternalWorkItem) workItemCaptor1.capture());
+        verify(mockTaskManager).scheduleMoreWork();
+
+        List<InternalWorkItem> workItems = workItemCaptor1.getAllValues();
+
+        InternalWorkItem workItem1 = workItems.get(0);
+        assertThat(workItem1.getTaskType(), is(taskType1));
+        assertThat(workItem1.getMajorPriority(), is(major1));
+        assertThat(workItem1.getMinorPriority(), is(minor1));
+        assertThat(workItem1.getJsonData(), is(json1));
+        assertThat(workItem1.getState(), is(WorkItemState.READY));
+        assertThat(workItem1.getRetryCount(), is(0));
+        assertThat(workItem1.isRequiresInternet(), is(requiresInternet1));
+        assertThat(workItem1.getMaxRetries(), is(maxRetryCount1));
+        assertThat(workItem1.isShouldHold(), is(shouldHold1));
+
+        long milliseconds = System.currentTimeMillis();
+        int timeDifference = (int) milliseconds - workItem1.getTimeCreated();
+        assertThat("Time is almost the same", timeDifference < 100);
+
+        InternalWorkItem workItem2 = workItems.get(1);
+        assertThat(workItem2.getTaskType(), is(taskType2));
+        assertThat(workItem2.getMajorPriority(), is(major2));
+        assertThat(workItem2.getMinorPriority(), is(minor2));
+        assertThat(workItem2.getJsonData(), is(json2));
+        assertThat(workItem2.getState(), is(WorkItemState.READY));
+        assertThat(workItem2.getRetryCount(), is(0));
+        assertThat(workItem2.isRequiresInternet(), is(requiresInternet2));
+        assertThat(workItem2.getMaxRetries(), is(maxRetryCount2));
+        assertThat(workItem2.isShouldHold(), is(shouldHold2));
+
+        milliseconds = System.currentTimeMillis();
+        timeDifference = (int) milliseconds - workItem2.getTimeCreated();
+        assertThat("Time is almost the same", timeDifference < 100);
+    }
+
+    @Test
+    public void testQueueTaskArrayFailure() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        when(mockDb.addNewWorkItem(Matchers.any(InternalWorkItem.class))).thenReturn(false);
+
+        ArgumentCaptor workItemCaptor1 = ArgumentCaptor.forClass(InternalWorkItem.class);
+
+        String taskType1 = "taskT";
+        int major1 = 32;
+        int minor1 = 2;
+        JSONObject json1 = new JSONObject("{key:value}");
+        boolean requiresInternet1 = true;
+        int maxRetryCount1 = 3242234;
+        boolean shouldHold1 = true;
+
+        Task task1 = new Task(taskType1, json1);
+        task1.setMajorPriority(major1);
+        task1.setMinorPriority(minor1);
+        task1.setRequiresInternet(requiresInternet1);
+        task1.setMaxRetries(maxRetryCount1);
+        task1.setShouldHoldAfterMaxRetries(shouldHold1);
+
+        String taskType2 = "taaaskT";
+        int major2 = 332;
+        int minor2 = 5632;
+        JSONObject json2 = new JSONObject("{key:other}");
+        boolean requiresInternet2 = false;
+        int maxRetryCount2 = 3234;
+        boolean shouldHold2 = false;
+
+        Task task2 = new Task(taskType2, json2);
+        task2.setMajorPriority(major2);
+        task2.setMinorPriority(minor2);
+        task2.setRequiresInternet(requiresInternet2);
+        task2.setMaxRetries(maxRetryCount2);
+        task2.setShouldHoldAfterMaxRetries(shouldHold2);
+
+        ArrayList<Task> taskArray = new ArrayList<>();
+        taskArray.add(task1);
+        taskArray.add(task2);
+
+        boolean success = mockTaskManager.queueTaskArray(taskArray);
+
+        assertThat(success, is(false));
+
+        verify(mockDb, times(2)).addNewWorkItem((InternalWorkItem) workItemCaptor1.capture());
+        verify(mockTaskManager, never()).scheduleMoreWork();
+
+        List<InternalWorkItem> workItems = workItemCaptor1.getAllValues();
+
+        InternalWorkItem workItem1 = workItems.get(0);
+        assertThat(workItem1.getTaskType(), is(taskType1));
+        assertThat(workItem1.getMajorPriority(), is(major1));
+        assertThat(workItem1.getMinorPriority(), is(minor1));
+        assertThat(workItem1.getJsonData(), is(json1));
+        assertThat(workItem1.getState(), is(WorkItemState.READY));
+        assertThat(workItem1.getRetryCount(), is(0));
+        assertThat(workItem1.isRequiresInternet(), is(requiresInternet1));
+        assertThat(workItem1.getMaxRetries(), is(maxRetryCount1));
+        assertThat(workItem1.isShouldHold(), is(shouldHold1));
+
+        long milliseconds = System.currentTimeMillis();
+        int timeDifference = (int) milliseconds - workItem1.getTimeCreated();
+        assertThat("Time is almost the same", timeDifference < 100);
+
+        InternalWorkItem workItem2 = workItems.get(1);
+        assertThat(workItem2.getTaskType(), is(taskType2));
+        assertThat(workItem2.getMajorPriority(), is(major2));
+        assertThat(workItem2.getMinorPriority(), is(minor2));
+        assertThat(workItem2.getJsonData(), is(json2));
+        assertThat(workItem2.getState(), is(WorkItemState.READY));
+        assertThat(workItem2.getRetryCount(), is(0));
+        assertThat(workItem2.isRequiresInternet(), is(requiresInternet2));
+        assertThat(workItem2.getMaxRetries(), is(maxRetryCount2));
+        assertThat(workItem2.isShouldHold(), is(shouldHold2));
+
+        milliseconds = System.currentTimeMillis();
+        timeDifference = (int) milliseconds - workItem2.getTimeCreated();
+        assertThat("Time is almost the same", timeDifference < 100);
+    }
+
+    @Test
+    public void testQueueTaskArrayIsWaiting() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        mockTaskManager.isWaitingForStopCompletion = true;
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        String taskType = "taskT";
+        Task task = new Task(taskType, null);
+        Task task2 = new Task(taskType, null);
+
+        ArrayList<Task> taskArray = new ArrayList<>(2);
+        taskArray.add(task);
+        taskArray.add(task2);
+
+        boolean success = mockTaskManager.queueTaskArray(taskArray);
+
+        assertThat(success, is(false));
+
+        verify(mockDb, never()).addNewWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockTaskManager, never()).scheduleMoreWork();
+    }
+
+    @Test
+    public void testQueueTaskArrayNoTaskType() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        mockTaskManager.isWaitingForStopCompletion = false;
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        String taskType = null;
+        Task task = new Task(taskType, null);
+        Task task2 = new Task(taskType, null);
+
+        ArrayList<Task> taskArray = new ArrayList<>(2);
+        taskArray.add(task);
+        taskArray.add(task2);
+
+        boolean success = mockTaskManager.queueTaskArray(taskArray);
+
+        assertThat(success, is(false));
+
+        verify(mockDb, never()).addNewWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockTaskManager, never()).scheduleMoreWork();
+    }
+
+    @Test
+    public void testQueueTaskArrayEmptyTaskType() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        mockTaskManager.isWaitingForStopCompletion = false;
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        String taskType = "";
+        Task task = new Task(taskType, null);
+        Task task2 = new Task(taskType, null);
+
+        ArrayList<Task> taskArray = new ArrayList<>(2);
+        taskArray.add(task);
+        taskArray.add(task2);
+
+        boolean success = mockTaskManager.queueTaskArray(taskArray);
+
+        assertThat(success, is(false));
+
+        verify(mockDb, never()).addNewWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockTaskManager, never()).scheduleMoreWork();
+    }
+
+    //endregion
+
+    //region Test Manipulating Tasks
+    @Test
+    public void testRemoveTasksOfType() throws Exception {
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        String taskType = "thisisatype";
+        taskManager.removeTasksOfType(taskType);
+
+        verify(mockDb).deleteWorkItemsWithTaskType(taskType);
+    }
+
+    @Test
+    public void testChangePriorityOfTasksOfType() throws Exception {
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        String taskType = "thisisatype";
+        int newMajorPriority = 9932;
+
+        taskManager.changePriorityOfTasksOfType(taskType, newMajorPriority);
+
+        verify(mockDb).changePriorityOfTaskType(taskType, newMajorPriority);
+    }
+
+    @Test
+    public void testCountOfTasksOfType() throws Exception {
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        int count = 83;
+        String taskType = "thisisatype";
+
+        when(mockDb.countOfWorkItemsWithTaskType(taskType)).thenReturn(count);
+
+        int returnedValue = taskManager.countOfTasksWithType(taskType);
+
+        assertThat(returnedValue, is(count));
+        verify(mockDb).countOfWorkItemsWithTaskType(taskType);
+    }
+
+    @Test
+    public void testCountOfTasksNotHolding() throws Exception {
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper=mockDb;
+
+        int count = 83;
+        when(mockDb.countOfWorkItemsNotHolding()).thenReturn(count);
+
+        int returnedCount = taskManager.countOfTasksNotHolding();
+
+        assertThat(returnedCount, is(count));
+        verify(mockDb).countOfWorkItemsNotHolding();
+    }
+
+    @Test
+    public void testRestartHoldingTasks() throws Exception {
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper=mockDb;
+
+        taskManager.restartHoldingTasks();
+
+        verify(mockDb).restartHoldingTasks();
+    }
+    //endregion
+
+    //region Test Manager Registration
+    @Test
+    public void testRegisterManagerSuccess() throws Exception {
+        String taskType = "taskTypeValue";
+        Manager manager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+
+        assertThat(taskManager.registeredManagers.size(), is(0));
+
+        taskManager.registerManagerForTaskType(manager, taskType);
+
+        assertThat(taskManager.registeredManagers.size(), is(1));
+
+        Manager managerForTaskType = taskManager.registeredManagers.get(taskType);
+        assertThat(managerForTaskType, is(manager));
+
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testRegisterManagerExistingManagerForType() throws Exception {
+        String taskType = "taskTypeValue";
+        Manager existingManager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+        taskManager.registeredManagers.put(taskType, existingManager);
+
+        Manager newManager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+
+        taskManager.registerManagerForTaskType(newManager, taskType);
+
+        assertThat(taskManager.registeredManagers.size(), is(1));
+
+        Manager managerForTaskType = taskManager.registeredManagers.get(taskType);
+        assertThat(managerForTaskType, is(existingManager));
+    }
+
+    @Test
+    public void testRegisterManagerSameManagerAlreadyRegistered() throws Exception {
+        String taskType = "taskTypeValue";
+        Manager existingManager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+        taskManager.registeredManagers.put(taskType, existingManager);
+
+        taskManager.registerManagerForTaskType(existingManager, taskType);
+
+        assertThat(taskManager.registeredManagers.size(), is(1));
+
+        Manager managerForTaskType = taskManager.registeredManagers.get(taskType);
+        assertThat(managerForTaskType, is(existingManager));
+    }
+
+    @Test
+    public void testRemoveRegisteredManagerForAllTaskTypes() throws Exception {
+        String typeToRemove1 = "removeType";
+        String typeToRemove2 = "removeType2";
+        String typeToKeep = "keeptype";
+
+        Manager removeManager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+        Manager keepManager = new Manager() {
+            @Override
+            public TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem) {
+                return null;
+            }
+        };
+
+        taskManager.registeredManagers.put(typeToRemove1, removeManager);
+        taskManager.registeredManagers.put(typeToKeep, keepManager);
+        taskManager.registeredManagers.put(typeToRemove2, removeManager);
+
+        taskManager.removeRegisteredManagerForAllTaskTypes(removeManager);
+
+        assertThat(taskManager.registeredManagers.size(), is(1));
+        Manager remainingManager = taskManager.registeredManagers.get(typeToKeep);
+        assertThat(remainingManager, is(keepManager));
+    }
     //endregion
 }

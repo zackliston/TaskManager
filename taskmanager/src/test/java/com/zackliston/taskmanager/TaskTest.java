@@ -31,7 +31,7 @@ public class TaskTest {
 
     @Test
     public void testBaseInit() throws Exception {
-        Task task = new Task();
+        Task task = new Task(null,null);
 
         assertThat(task.getMajorPriority(), is(Task.DEFAULT_MAJOR_PRIORITY));
         assertThat(task.getMinorPriority(), is(Task.DEFAULT_MINOR_PRIORITY));

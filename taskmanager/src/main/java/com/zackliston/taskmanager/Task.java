@@ -22,7 +22,7 @@ public class Task
     //endregion
 
     //region Initializer
-    public Task() {
+    private Task() {
         majorPriority = DEFAULT_MAJOR_PRIORITY;
         minorPriority = DEFAULT_MINOR_PRIORITY;
         requiresInternet = false;

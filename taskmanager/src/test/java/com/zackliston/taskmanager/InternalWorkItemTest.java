@@ -6,11 +6,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+@Config(manifest=Config.NONE)
 @RunWith(RobolectricTestRunner.class)
 public class InternalWorkItemTest {
 

@@ -11,13 +11,11 @@ import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
-import java.math.MathContext;
-import java.sql.SQLInput;
 import java.util.ArrayList;
 import java.util.Random;
 
-import static org.hamcrest.CoreMatchers.any;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.Mockito.*;
@@ -30,6 +28,7 @@ import static org.hamcrest.CoreMatchers.is;
  * Created by Zack Liston on 2/27/15.
  */
 
+@Config(manifest=Config.NONE)
 @RunWith(RobolectricTestRunner.class)
 public class WorkItemDatabaseHelperTest
 {
@@ -62,7 +61,7 @@ public class WorkItemDatabaseHelperTest
 
     @After
     public void tearDown() {
-        databaseHelper.getReadableDatabase().execSQL("DROP TABLE " + WORK_ITEM_TABLE_NAME);
+        databaseHelper.getWritableDatabase().execSQL("DROP TABLE " + WORK_ITEM_TABLE_NAME);
         databaseHelper = null;
     }
 
@@ -458,6 +457,316 @@ public class WorkItemDatabaseHelperTest
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());
         assertThat(nextWorkItem.getData(), is(highPriorityData));
+    }
+
+    @Test
+    public void testGetNextWorkItemNoInternetRequiresInternet() throws Exception {
+        String taskType = "taskTypea";
+        String lowPriorityData = "lowPriorityDat";
+        String highPriorityData = "highPriority";
+
+        InternalWorkItem highPriorityItem = new InternalWorkItem();
+        highPriorityItem.setTaskType(taskType);
+        highPriorityItem.setData(highPriorityData);
+        highPriorityItem.setState(WorkItemState.READY);
+        highPriorityItem.setMajorPriority(50);
+
+        highPriorityItem.setRequiresInternet(true);
+
+        databaseHelper.addNewWorkItem(highPriorityItem);
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setTaskType(taskType);
+        workItem.setData(lowPriorityData);
+        workItem.setState(WorkItemState.READY);
+
+        workItem.setMajorPriority(5);
+        workItem.setRequiresInternet(false);
+
+        databaseHelper.addNewWorkItem(workItem);
+
+        ArrayList<String> types = new ArrayList<>();
+        types.add(taskType);
+        InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
+        assertThat(nextWorkItem, notNullValue());
+        assertThat(nextWorkItem.getData(), is(lowPriorityData));
+
+        databaseHelper.deleteWorkItem(nextWorkItem);
+
+        InternalWorkItem noInternetItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
+        assertThat(noInternetItem, nullValue());
+
+        InternalWorkItem internetItem = databaseHelper.getNextWorkItemForTaskTypes(types, true);
+        assertThat(internetItem, notNullValue());
+        assertThat(internetItem.getData(), is(highPriorityData));
+    }
+
+    //endregion
+
+    //region Test Item Manipulation Methods
+
+    @Test
+    public void testDeleteWorkItemsWithTaskType() throws Exception {
+        String deleteType = "deleteType";
+        String keepType = "keepType";
+
+        InternalWorkItem delete1 = new InternalWorkItem();
+        delete1.setTaskType(deleteType);
+        delete1.setState(WorkItemState.READY);
+        InternalWorkItem delete2 = new InternalWorkItem();
+        delete2.setTaskType(deleteType);
+        delete2.setState(WorkItemState.READY);
+
+        InternalWorkItem keep1 = new InternalWorkItem();
+        keep1.setTaskType(keepType);
+        keep1.setState(WorkItemState.READY);
+        InternalWorkItem keep2 = new InternalWorkItem();
+        keep2.setTaskType(keepType);
+        keep2.setState(WorkItemState.READY);
+
+        databaseHelper.addNewWorkItem(delete1);
+        databaseHelper.addNewWorkItem(keep2);
+        databaseHelper.addNewWorkItem(delete2);
+        databaseHelper.addNewWorkItem(keep1);
+
+        databaseHelper.deleteWorkItemsWithTaskType(deleteType);
+
+        Cursor cursor = databaseHelper.getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, null, null, null, null, null);
+        assertThat(cursor.getCount(), is(2));
+
+        cursor.moveToFirst();
+        String returnedType1 = cursor.getString(cursor.getColumnIndex(TASK_TYPE_COLUMN));
+
+        cursor.moveToNext();
+        String returnedType2 = cursor.getString(cursor.getColumnIndex(TASK_TYPE_COLUMN));
+
+        assertThat(returnedType1, is(keepType));
+        assertThat(returnedType2, is(keepType));
+    }
+
+    @Test
+    public void testChangePriorityOfTasksWithType() throws Exception {
+
+        String changeType = "changeType";
+        String keepType = "keepType";
+        int originalMajorPriotiy = 5;
+        int newMajorPriority = 8;
+
+        InternalWorkItem change1 = new InternalWorkItem();
+        change1.setTaskType(changeType);
+        change1.setState(WorkItemState.READY);
+        change1.setMajorPriority(originalMajorPriotiy);
+
+        InternalWorkItem change2 = new InternalWorkItem();
+        change2.setTaskType(changeType);
+        change2.setState(WorkItemState.READY);
+        change2.setMajorPriority(originalMajorPriotiy);
+
+        InternalWorkItem keep1 = new InternalWorkItem();
+        keep1.setTaskType(keepType);
+        keep1.setState(WorkItemState.READY);
+        keep1.setMajorPriority(originalMajorPriotiy);
+
+        InternalWorkItem keep2 = new InternalWorkItem();
+        keep2.setTaskType(keepType);
+        keep2.setState(WorkItemState.READY);
+        keep2.setMajorPriority(originalMajorPriotiy);
+
+        databaseHelper.addNewWorkItem(change1);
+        databaseHelper.addNewWorkItem(keep2);
+        databaseHelper.addNewWorkItem(change2);
+        databaseHelper.addNewWorkItem(keep1);
+
+        databaseHelper.changePriorityOfTaskType(changeType, newMajorPriority);
+
+        Cursor aCursor = databaseHelper.getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, null, null, null, null, null);
+        assertThat(aCursor.getCount(), is(4));
+
+        aCursor.moveToFirst();
+        while (!aCursor.isAfterLast()) {
+            String returnedType1 = aCursor.getString(aCursor.getColumnIndex(TASK_TYPE_COLUMN));
+            int majorP = aCursor.getInt(aCursor.getColumnIndex(MAJOR_PRIORITY_COLUMN));
+
+            if (returnedType1.equals(changeType)) {
+                assertThat(majorP, is(newMajorPriority));
+            } else if (returnedType1.equals(keepType)) {
+                assertThat(majorP, is(originalMajorPriotiy));
+            } else {
+                assertThat("Should be one of the two provided types", false);
+            }
+            aCursor.moveToNext();
+        }
+    }
+
+    @Test
+    public void testRestartHoldingTasks() throws Exception {
+        String readyData = "ready";
+        String executingData = "executing";
+        String holdingData = "holding";
+
+        InternalWorkItem readyItem = new InternalWorkItem();
+        readyItem.setState(WorkItemState.READY);
+        readyItem.setData(readyData);
+
+        InternalWorkItem executingItem = new InternalWorkItem();
+        executingItem.setState(WorkItemState.EXECUTING);
+        executingItem.setData(executingData);
+
+        InternalWorkItem hold1 = new InternalWorkItem();
+        hold1.setState(WorkItemState.HOLDING);
+        hold1.setData(holdingData);
+
+        InternalWorkItem hold2 = new InternalWorkItem();
+        hold2.setState(WorkItemState.HOLDING);
+        hold2.setData(holdingData);
+
+        databaseHelper.addNewWorkItem(readyItem);
+        databaseHelper.addNewWorkItem(executingItem);
+        databaseHelper.addNewWorkItem(hold1);
+        databaseHelper.addNewWorkItem(hold2);
+
+        databaseHelper.restartHoldingTasks();
+
+        Cursor aCursor = databaseHelper.getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, null, null, null, null, null);
+        assertThat(aCursor.getCount(), is(4));
+
+        aCursor.moveToFirst();
+        while (!aCursor.isAfterLast()) {
+            String returnedData = aCursor.getString(aCursor.getColumnIndex(DATA_COLUMN));
+            WorkItemState state = WorkItemState.valueOf(aCursor.getInt(aCursor.getColumnIndex(STATE_COLUMN)));
+
+            if (returnedData.equals(readyData)) {
+                assertThat(state, is(WorkItemState.READY));
+            } else if (returnedData.equals(executingData)) {
+                assertThat(state, is(WorkItemState.EXECUTING));
+            } else if (returnedData.equals(holdingData)) {
+                assertThat(state, is(WorkItemState.READY));
+            } else {
+                assertThat("Should be one of the three provided datas", false);
+            }
+            aCursor.moveToNext();
+        }
+    }
+
+    @Test
+    public void testRestartExecutingTasks() throws Exception {
+        String readyData = "ready";
+        String executingData = "executing";
+        String holdingData = "holding";
+
+        InternalWorkItem readyItem = new InternalWorkItem();
+        readyItem.setState(WorkItemState.READY);
+        readyItem.setData(readyData);
+
+        InternalWorkItem executingItem = new InternalWorkItem();
+        executingItem.setState(WorkItemState.EXECUTING);
+        executingItem.setData(executingData);
+
+        InternalWorkItem executingItem2 = new InternalWorkItem();
+        executingItem2.setState(WorkItemState.EXECUTING);
+        executingItem2.setData(executingData);
+
+        InternalWorkItem hold1 = new InternalWorkItem();
+        hold1.setState(WorkItemState.HOLDING);
+        hold1.setData(holdingData);
+
+
+        databaseHelper.addNewWorkItem(readyItem);
+        databaseHelper.addNewWorkItem(executingItem);
+        databaseHelper.addNewWorkItem(hold1);
+        databaseHelper.addNewWorkItem(executingItem2);
+
+        databaseHelper.restartExecutingTasks();
+
+        Cursor aCursor = databaseHelper.getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, null, null, null, null, null);
+        assertThat(aCursor.getCount(), is(4));
+
+        aCursor.moveToFirst();
+        while (!aCursor.isAfterLast()) {
+            String returnedData = aCursor.getString(aCursor.getColumnIndex(DATA_COLUMN));
+            WorkItemState state = WorkItemState.valueOf(aCursor.getInt(aCursor.getColumnIndex(STATE_COLUMN)));
+
+            if (returnedData.equals(readyData)) {
+                assertThat(state, is(WorkItemState.READY));
+            } else if (returnedData.equals(executingData)) {
+                assertThat(state, is(WorkItemState.READY));
+            } else if (returnedData.equals(holdingData)) {
+                assertThat(state, is(WorkItemState.HOLDING));
+            } else {
+                assertThat("Should be one of the three provided datas", false);
+            }
+            aCursor.moveToNext();
+        }
+    }
+
+    @Test
+    public void testCountOfWorkItemsWithType() throws Exception {
+        String countType = "Count";
+        String noCountType = "noCount";
+
+        InternalWorkItem count1 = new InternalWorkItem();
+        count1.setTaskType(countType);
+        count1.setState(WorkItemState.HOLDING);
+
+        InternalWorkItem count2 = new InternalWorkItem();
+        count2.setTaskType(countType);
+        count2.setState(WorkItemState.EXECUTING);
+
+        InternalWorkItem noCount = new InternalWorkItem();
+        noCount.setTaskType(noCountType);
+        noCount.setState(WorkItemState.READY);
+
+        databaseHelper.addNewWorkItem(count1);
+        databaseHelper.addNewWorkItem(count2);
+        databaseHelper.addNewWorkItem(noCount);
+
+        int count = databaseHelper.countOfWorkItemsWithTaskType(countType);
+        assertThat(count, is(2));
+    }
+
+    @Test
+    public void testCountOfWorkItemsNotHolding() throws Exception {
+
+        InternalWorkItem count1 = new InternalWorkItem();
+        count1.setState(WorkItemState.HOLDING);
+
+        InternalWorkItem count2 = new InternalWorkItem();
+        count2.setState(WorkItemState.EXECUTING);
+
+        InternalWorkItem noCount = new InternalWorkItem();
+        noCount.setState(WorkItemState.READY);
+
+        InternalWorkItem notHolding = new InternalWorkItem();
+        notHolding.setState(WorkItemState.EXECUTING);
+
+        databaseHelper.addNewWorkItem(count1);
+        databaseHelper.addNewWorkItem(count2);
+        databaseHelper.addNewWorkItem(noCount);
+        databaseHelper.addNewWorkItem(notHolding);
+
+        int count = databaseHelper.countOfWorkItemsNotHolding();
+        assertThat(count, is(3));
+    }
+
+    @Test
+    public void testResetDatabase() throws Exception {
+        for (int i=0; i<20; i++) {
+            InternalWorkItem workItem = new InternalWorkItem();
+
+            if (i<10) {
+                workItem.setState(WorkItemState.HOLDING);
+            } else if (i<15) {
+                workItem.setState(WorkItemState.EXECUTING);
+            } else {
+                workItem.setState(WorkItemState.READY);
+            }
+            databaseHelper.addNewWorkItem(workItem);
+        }
+
+        databaseHelper.resetDatabase();
+
+        Cursor aCursor = databaseHelper.getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, null, null, null, null, null);
+        assertThat(aCursor.getCount(), is(0));
     }
     //endregion
 

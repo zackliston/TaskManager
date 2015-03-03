@@ -2,6 +2,7 @@ package com.zackliston.taskmanager;
 
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.Context;
@@ -9,6 +10,7 @@ import com.zackliston.taskmanager.InternalWorkItem;
 
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
 
 /**
  * Created by Zack Liston on 2/25/15.
@@ -47,6 +49,10 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
     @Override
     public void onCreate(SQLiteDatabase db)
     {
+       initializeDatabaseTable(db);
+    }
+
+    private void initializeDatabaseTable(SQLiteDatabase db) {
         // Create statement
         String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS " + WORK_ITEM_TABLE_NAME + " ( " +
                 DEFAULT_ID_COLUMN + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -91,8 +97,10 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         args.toArray(stringArgs);
 
         Cursor resultCursor = getReadableDatabase().query(WORK_ITEM_TABLE_NAME, DEFAULT_COLUMNS, getNextQueryString, stringArgs, null, null, orderByString, "1");
+        InternalWorkItem workItem = workItemFromCursor(resultCursor);
+        resultCursor.close();
 
-        return workItemFromCursor(resultCursor);
+        return workItem;
     }
 
     protected boolean addNewWorkItem(InternalWorkItem workItem) {
@@ -148,11 +156,71 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return (numberOfRowsAffected == 1) ? true : false;
     }
 
-    protected  boolean deleteWorkItem(InternalWorkItem workItem) {
+    protected boolean deleteWorkItem(InternalWorkItem workItem) {
         String[] args = {workItem.getId()+""};
         int numberOfRowsAffected = getWritableDatabase().delete(WORK_ITEM_TABLE_NAME, DEFAULT_ID_COLUMN + " == ?", args);
 
         return (numberOfRowsAffected == 1) ? true : false;
+    }
+
+    protected void deleteWorkItemsWithTaskType(String taskType) {
+        String[] args = {taskType};
+        getWritableDatabase().delete(WORK_ITEM_TABLE_NAME, TASK_TYPE_COLUMN + " == ?", args);
+    }
+
+    protected void changePriorityOfTaskType(String taskType, int newMajorPriority) {
+        String[] args = {taskType};
+
+        ContentValues values = new ContentValues();
+        values.put(MAJOR_PRIORITY_COLUMN, newMajorPriority);
+
+        getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, TASK_TYPE_COLUMN + " == ?", args);
+    }
+
+    protected void restartHoldingTasks() {
+        String[] args = {"" + WorkItemState.HOLDING.value()};
+
+        ContentValues values = new ContentValues();
+        values.put(STATE_COLUMN, WorkItemState.READY.value());
+
+        getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, STATE_COLUMN + " == ?", args);
+    }
+
+    protected void restartExecutingTasks() {
+        String[] args = {"" + WorkItemState.EXECUTING.value()};
+
+        ContentValues values = new ContentValues();
+        values.put(STATE_COLUMN, WorkItemState.READY.value());
+
+        getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, STATE_COLUMN + " == ?", args);
+    }
+
+    protected int countOfWorkItemsWithTaskType(String taskType) {
+        String[] args = {taskType};
+
+        Cursor cursor = getReadableDatabase().rawQuery("select count(*) from " + WORK_ITEM_TABLE_NAME + " where " + TASK_TYPE_COLUMN + " == ? ",args);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+
+        return count;
+    }
+
+    protected int countOfWorkItemsNotHolding() {
+        String[] args = {"" + WorkItemState.HOLDING.value()};
+
+        Cursor cursor = getReadableDatabase().rawQuery("select count(*) from " + WORK_ITEM_TABLE_NAME + " where " + STATE_COLUMN + " != ? ",args);
+        cursor.moveToFirst();
+        int count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    protected void resetDatabase() {
+        SQLiteDatabase db = getWritableDatabase();
+
+        db.execSQL("DROP TABLE " + WORK_ITEM_TABLE_NAME);
+        initializeDatabaseTable(db);
     }
 
     //endregion

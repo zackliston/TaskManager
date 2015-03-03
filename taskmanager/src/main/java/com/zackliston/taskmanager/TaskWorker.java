@@ -5,12 +5,15 @@ package com.zackliston.taskmanager;
  */
 public abstract class TaskWorker implements Runnable
 {
+    //region Variables
     private InternalWorkItem workItem;
     private TaskFinishedInterface taskFinishedDelegate;
     private boolean taskFailed;
     private boolean isFinalAttempt;
     private boolean hasCalledTaskFinished;
+    //endregion
 
+    //region Getters/Setters
     public InternalWorkItem workItem() {
         return workItem;
     }
@@ -42,6 +45,12 @@ public abstract class TaskWorker implements Runnable
     public void setFinalAttempt(boolean isFinalAttempt) {
         this.isFinalAttempt = isFinalAttempt;
     }
+
+    public boolean isCancelled() {
+        return Thread.currentThread().isInterrupted();
+    }
+
+    //endregion
 
     public void setupWithWorkItem(InternalWorkItem workItem) {
         this.workItem = workItem;

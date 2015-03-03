@@ -91,12 +91,42 @@ public class TaskManager {
             public void run() {
                 try {
                     executorService.awaitTermination(30, TimeUnit.SECONDS);
-                    setIsWaitingForStopCompletion(false);
                 } catch (InterruptedException exception) {
                     System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
                 } finally {
-                    mainHandler.post(completionBlock);
+                    setIsWaitingForStopCompletion(false);
+                    if (completionBlock != null) {
+                        mainHandler.post(completionBlock);
+                    }
                 }
+            }
+        });
+    }
+
+    public synchronized void stopAndWait(Runnable networkCancellationBlock) {
+        isRunning = false;
+        setIsWaitingForStopCompletion(true);
+
+        if (networkCancellationBlock != null) {
+            networkCancellationBlock.run();
+        }
+
+        executorService.shutdownNow();
+        try {
+            executorService.awaitTermination(30, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
+        } finally {
+            setIsWaitingForStopCompletion(false);
+        }
+    }
+
+    public synchronized void resume() {
+        isRunning = true;
+        backgroundService.execute(new Runnable() {
+            @Override
+            public void run() {
+                scheduleMoreWork();
             }
         });
     }

@@ -9,8 +9,12 @@ import org.apache.tools.ant.taskdefs.Exec;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.junit.runners.model.RunnerBuilder;
 import org.mockito.ArgumentCaptor;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
+
 import android.os.Handler;
 
 import java.util.concurrent.ExecutorService;
@@ -19,16 +23,15 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.*;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.CoreMatchers.is;
 
-public class TaskManagerTest extends TestCase {
+@Config(manifest=Config.NONE)
+@RunWith(RobolectricTestRunner.class)
+public class TaskManagerTest {
 
     private TaskManager taskManager;
     @Before
     public void setUp() throws Exception {
-        super.setUp();
         Context mockContext = mock(Context.class);
         ConnectivityManager mockConnectivityManager = mock(ConnectivityManager.class);
 
@@ -39,8 +42,6 @@ public class TaskManagerTest extends TestCase {
     @After
     public void tearDown() throws Exception {
         TaskManager.tearDownForTest();
-
-        super.tearDown();
     }
 
     //region Test initialization
@@ -52,8 +53,8 @@ public class TaskManagerTest extends TestCase {
         assertThat(taskManager.mainHandler, notNullValue());
         assertThat(taskManager.connectivityManager, notNullValue());
 
-        assertTrue(taskManager.isRunning);
-        assertFalse(taskManager.isWaitingForStopCompletion);
+        assertThat("Is running",taskManager.isRunning);
+        assertThat("Is not waiting", taskManager.isWaitingForStopCompletion == false);
         assertThat(taskManager.registeredManagers, notNullValue());
     }
     //endregion
@@ -70,7 +71,7 @@ public class TaskManagerTest extends TestCase {
         mockTaskManager.backgroundService = mockService;
 
         mockTaskManager.setIsWaitingForStopCompletion(false);
-        assertFalse(mockTaskManager.isWaitingForStopCompletion);
+        assertThat("Is not waiting", mockTaskManager.isWaitingForStopCompletion == false);
 
         verify(mockService).execute((Runnable)runnableCaptor.capture());
         Runnable runnable = (Runnable)runnableCaptor.getValue();
@@ -89,7 +90,7 @@ public class TaskManagerTest extends TestCase {
         mockTaskManager.backgroundService = mockService;
 
         mockTaskManager.setIsWaitingForStopCompletion(true);
-        assertTrue(mockTaskManager.isWaitingForStopCompletion);
+        assertThat("Is Waiting", mockTaskManager.isWaitingForStopCompletion);
 
         verify(mockService, never()).execute((Runnable)runnableCaptor.capture());
     }
@@ -104,7 +105,7 @@ public class TaskManagerTest extends TestCase {
         mockTaskManager.backgroundService = mockService;
 
         mockTaskManager.setIsWaitingForStopCompletion(false);
-        assertFalse(mockTaskManager.isWaitingForStopCompletion);
+        assertThat("Is not waiting", mockTaskManager.isWaitingForStopCompletion == false);
 
         verify(mockService, never()).execute((Runnable)runnableCaptor.capture());
     }
@@ -131,22 +132,64 @@ public class TaskManagerTest extends TestCase {
         ArgumentCaptor runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
 
         taskManager.stopAsynchronously(mockNetworkBlock, mockCompletionBlock);
-        assertFalse(taskManager.isRunning);
-        assertTrue(taskManager.isWaitingForStopCompletion);
+        assertThat("Is not running", taskManager.isRunning == false);
+        assertThat("Is waiting", taskManager.isWaitingForStopCompletion);
 
         verify(mockNetworkBlock).run();
         verify(mockExecutorService).shutdownNow();
         verify(mockBackground).execute((Runnable)runnableCaptor.capture());
         verify(mockMainHanlder, never()).post(mockCompletionBlock);
-        assertTrue(taskManager.isWaitingForStopCompletion);
+        assertThat("Is waiting", taskManager.isWaitingForStopCompletion);
 
         Runnable waitRunnable = (Runnable)runnableCaptor.getValue();
         waitRunnable.run();
 
-        assertFalse(taskManager.isWaitingForStopCompletion);
+        assertThat("Is not waiting", taskManager.isWaitingForStopCompletion == false);
         verify(mockExecutorService).awaitTermination(30, TimeUnit.SECONDS);
 
         verify(mockMainHanlder).post(mockCompletionBlock);
+    }
+
+    @Test
+    public void testStopAndWait() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+
+        mockTaskManager.isRunning = true;
+        mockTaskManager.isWaitingForStopCompletion = false;
+
+        Runnable mockNetworkBlock = mock(Runnable.class);
+        ExecutorService mockExecutorService = mock(ExecutorService.class);
+        mockTaskManager.executorService = mockExecutorService;
+
+        mockTaskManager.stopAndWait(mockNetworkBlock);
+
+        verify(mockNetworkBlock).run();
+        verify(mockTaskManager).setIsWaitingForStopCompletion(true);
+        verify(mockExecutorService).shutdownNow();
+        verify(mockExecutorService).awaitTermination(30, TimeUnit.SECONDS);
+        verify(mockTaskManager).setIsWaitingForStopCompletion(false);
+    }
+
+    @Test
+    public void testResume() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+
+        mockTaskManager.isRunning = false;
+
+        ExecutorService mockBackground = mock(ExecutorService.class);
+        mockTaskManager.backgroundService = mockBackground;
+        ArgumentCaptor runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+
+        mockTaskManager.resume();
+
+        assertThat("Is running", mockTaskManager.isRunning);
+        verify(mockBackground).execute((Runnable)runnableCaptor.capture());
+        Runnable waitRunnable = (Runnable)runnableCaptor.getValue();
+
+        verify(mockTaskManager, never()).scheduleMoreWork();
+
+        waitRunnable.run();
+        verify(mockTaskManager).scheduleMoreWork();
     }
     //endregion
 }

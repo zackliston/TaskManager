@@ -7,6 +7,8 @@ import android.net.ConnectivityManager;
 import android.os.Handler;
 
 
+import org.json.JSONObject;
+
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -129,6 +131,37 @@ public class TaskManager {
                 scheduleMoreWork();
             }
         });
+    }
+    //endregion
+
+    //region Queueing Tasks
+    public boolean queueTask(Task task) {
+        if (isWaitingForStopCompletion || task.getTaskType() == null || task.getTaskType().length() < 1) {
+            return false;
+        }
+
+        boolean success = false;
+        synchronized (this) {
+            InternalWorkItem workItem = new InternalWorkItem();
+            workItem.setTaskType(task.getTaskType());
+            workItem.setMajorPriority(task.getMajorPriority());
+            workItem.setMinorPriority(task.getMinorPriority());
+            workItem.setJsonData(task.getJsonData());
+            workItem.setState(WorkItemState.READY);
+            workItem.setRetryCount(0);
+            workItem.setRequiresInternet(task.isRequiresInternet());
+            workItem.setTimeCreated((int) System.currentTimeMillis());
+            workItem.setMaxRetries(task.getMaxRetries());
+            workItem.setShouldHold(task.isShouldHoldAfterMaxRetries());
+
+            success = workItemDatabaseHelper.addNewWorkItem(workItem);
+
+            if (success) {
+                scheduleMoreWork();
+            }
+        }
+
+        return success;
     }
     //endregion
 

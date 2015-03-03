@@ -49,7 +49,7 @@ public class TaskTest {
 
         assertThat(task.getTaskType(), is(taskType));
         assertThat(task.getJsonData(), is(jsonObject));
-        
+
         assertThat(task.getMajorPriority(), is(Task.DEFAULT_MAJOR_PRIORITY));
         assertThat(task.getMinorPriority(), is(Task.DEFAULT_MINOR_PRIORITY));
         assertThat(task.getMaxRetries(), is(Task.DEFAULT_MAX_RETRY_COUNT));

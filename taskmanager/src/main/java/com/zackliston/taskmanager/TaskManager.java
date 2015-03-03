@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Handler;
 
 
@@ -11,6 +12,9 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -18,9 +22,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by Zack Liston on 3/2/15.
  */
-public class TaskManager {
+public class TaskManager implements TaskFinishedInterface {
     //region constants
-    private static final int MAX_NUMBER_CONCURRENT_OPERATIONS = 4;
+    protected static final int MAX_NUMBER_CONCURRENT_OPERATIONS = 4;
     //endregion
 
     //region Variables
@@ -28,12 +32,14 @@ public class TaskManager {
     protected ExecutorService executorService;
     protected ExecutorService backgroundService;
     protected Handler mainHandler;
+    protected Timer workTimer;
+
     protected ConnectivityManager connectivityManager;
     protected HashMap<String, Manager> registeredManagers;
 
     protected boolean isRunning;
     protected boolean isWaitingForStopCompletion;
-
+    protected int countOfCurrentlyRunningTasks;
     //endregion
 
     //region Initialization
@@ -58,6 +64,7 @@ public class TaskManager {
 
         isRunning = true;
         isWaitingForStopCompletion = false;
+        countOfCurrentlyRunningTasks = 0;
     }
     //endregion
 
@@ -99,6 +106,7 @@ public class TaskManager {
                 } finally {
                     setIsWaitingForStopCompletion(false);
                     if (completionBlock != null) {
+                        executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
                         mainHandler.post(completionBlock);
                     }
                 }
@@ -121,6 +129,7 @@ public class TaskManager {
             System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
         } finally {
             setIsWaitingForStopCompletion(false);
+            Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
         }
     }
 
@@ -253,10 +262,109 @@ public class TaskManager {
     }
     //endregion
 
+    //region Scheduling Work
     protected void scheduleMoreWork() {
+        if (workTimer != null) {
+            workTimer.cancel();
+        }
 
+        boolean stop = countOfCurrentlyRunningTasks >= MAX_NUMBER_CONCURRENT_OPERATIONS;
+        while (!stop) {
+            boolean success = createAndQueueNextTaskWorker();
+            if (success) {
+                countOfCurrentlyRunningTasks++;
+            } else {
+                stop = true;
+            }
+
+            if (countOfCurrentlyRunningTasks >= MAX_NUMBER_CONCURRENT_OPERATIONS) {
+                stop = true;
+            }
+        }
+
+        workTimer = new Timer();
+        workTimer.schedule(new ScheduleWorkFromTimer(), 5000);
     }
 
+    protected boolean createAndQueueNextTaskWorker() {
+        boolean isConnected = false;
+        if (connectivityManager != null) {
+            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+            if (networkInfo != null) {
+                isConnected = networkInfo.isConnected();
+            }
+        } else {
+            System.out.println("There is no Connectivity manager in TaskManager. Only executing tasks that do not require Internet.");
+        }
+
+        Set taskTypes = registeredManagers.keySet();
+        InternalWorkItem workItem = workItemDatabaseHelper.getNextWorkItemForTaskTypes(taskTypes, isConnected);
+
+        if (workItem == null) {
+            return false;
+        }
+
+        Manager managerForTaskType = registeredManagers.get(workItem.getTaskType());
+        if (managerForTaskType == null) {
+            System.out.println("There is no registered manager for task type " + workItem.getTaskType() + " cannot execute.");
+            return false;
+        }
+
+        workItem.setState(WorkItemState.EXECUTING);
+        workItemDatabaseHelper.updateWorkItem(workItem);
+
+        TaskWorker worker = managerForTaskType.taskWorkerForWorkItem(workItem);
+        worker.taskFinishedDelegate = this;
+
+        executorService.execute(worker);
+
+        return true;
+    }
+    //endregion
+
+    //region TaskFinished Interface
+    public void taskWorkerFinishedSuccessfully(TaskWorker taskWorker, boolean success) {
+        synchronized (this) {
+            countOfCurrentlyRunningTasks--;
+            if (success) {
+                workItemDatabaseHelper.deleteWorkItem(taskWorker.workItem);
+            } else {
+                InternalWorkItem workItem = taskWorker.workItem;
+                int oldRetryCount = workItem.getRetryCount();
+                workItem.setRetryCount(oldRetryCount+1);
+
+                if (workItem.getRetryCount() >= workItem.getMaxRetries()) {
+                    Manager managerForTask = registeredManagers.get(workItem.getTaskType());
+                    if (managerForTask != null) {
+                        managerForTask.workItemDidFail(workItem);
+                    }
+
+                    if (workItem.isShouldHold()) {
+                        workItem.setState(WorkItemState.HOLDING);
+                        workItemDatabaseHelper.updateWorkItem(workItem);
+                    } else {
+                        workItemDatabaseHelper.deleteWorkItem(workItem);
+                    }
+
+                } else {
+                    workItem.setState(WorkItemState.READY);
+                    workItemDatabaseHelper.updateWorkItem(workItem);
+                }
+            }
+            scheduleMoreWork();
+        }
+    }
+    //endregion
+
+    //region Timer Helpers
+    class ScheduleWorkFromTimer extends TimerTask {
+        public void run() {
+            synchronized (ourInstance) {
+                scheduleMoreWork();
+            }
+        }
+    }
+    //endregion
 
     //region Test Helpers
     protected static void tearDownForTest() {

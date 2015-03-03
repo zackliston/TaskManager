@@ -10,6 +10,7 @@ import com.zackliston.taskmanager.InternalWorkItem;
 
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 /**
@@ -78,7 +79,11 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
     //endregion
 
     //region Protected Methods
-    protected InternalWorkItem getNextWorkItemForTaskTypes(ArrayList<String> taskTypes, boolean hasInternet) {
+    protected InternalWorkItem getNextWorkItemForTaskTypes(Set<String> taskTypes, boolean hasInternet) {
+        if (taskTypes.size() == 0) {
+            return null;
+        }
+
         ArrayList<String> args = new ArrayList<>();
         args.add(""+WorkItemState.READY.value());
         args.addAll(taskTypes);
@@ -227,7 +232,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
 
     //region Helpers
 
-    private String queryStringForTaskTypeArray(ArrayList taskTypes) {
+    private String queryStringForTaskTypeArray(Set<String> taskTypes) {
         String query = "(";
         for (int i=1; i<taskTypes.size(); i++) {
             query = query + "?, ";

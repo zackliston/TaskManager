@@ -13,8 +13,9 @@ import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -256,7 +257,7 @@ public class WorkItemDatabaseHelperTest
         databaseHelper.addNewWorkItem(testItem1);
         databaseHelper.addNewWorkItem(testItem2);
 
-        ArrayList<String> types = new ArrayList<String>();
+        HashSet<String> types = new HashSet<String>();
         types.add(type);
         InternalWorkItem nextItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
 
@@ -278,7 +279,7 @@ public class WorkItemDatabaseHelperTest
         databaseHelper.addNewWorkItem(testItem1);
         databaseHelper.addNewWorkItem(testItem2);
 
-        ArrayList<String> types = new ArrayList<String>();
+        HashSet<String> types = new HashSet<String>();
         types.add("Different Type");
         InternalWorkItem nextItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
 
@@ -305,7 +306,7 @@ public class WorkItemDatabaseHelperTest
         databaseHelper.addNewWorkItem(testItem1);
         databaseHelper.addNewWorkItem(testItem2);
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(typeA);
 
         InternalWorkItem nextItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
@@ -344,7 +345,7 @@ public class WorkItemDatabaseHelperTest
             databaseHelper.addNewWorkItem(workItem);
         }
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(taskType);
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());
@@ -378,7 +379,7 @@ public class WorkItemDatabaseHelperTest
             databaseHelper.addNewWorkItem(workItem);
         }
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(taskType);
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());
@@ -414,7 +415,7 @@ public class WorkItemDatabaseHelperTest
             databaseHelper.addNewWorkItem(workItem);
         }
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(taskType);
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());
@@ -452,7 +453,7 @@ public class WorkItemDatabaseHelperTest
             databaseHelper.addNewWorkItem(workItem);
         }
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(taskType);
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());
@@ -485,7 +486,7 @@ public class WorkItemDatabaseHelperTest
 
         databaseHelper.addNewWorkItem(workItem);
 
-        ArrayList<String> types = new ArrayList<>();
+        HashSet<String> types = new HashSet<>();
         types.add(taskType);
         InternalWorkItem nextWorkItem = databaseHelper.getNextWorkItemForTaskTypes(types, false);
         assertThat(nextWorkItem, notNullValue());

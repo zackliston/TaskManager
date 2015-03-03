@@ -17,10 +17,12 @@ import org.mockito.Matchers;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import android.net.NetworkInfo;
 import android.os.Handler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -754,5 +756,328 @@ public class TaskManagerTest {
         Manager remainingManager = taskManager.registeredManagers.get(typeToKeep);
         assertThat(remainingManager, is(keepManager));
     }
+    //endregion
+
+    //region Test Schedule More Work
+    @Test
+    public void testScheduleMoreWorkAlreadyAtCapacity() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        mockTaskManager.countOfCurrentlyRunningTasks = TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS;
+        int expectedNumberOfCalls = TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS - mockTaskManager.countOfCurrentlyRunningTasks;
+
+        doReturn(true).when(mockTaskManager).createAndQueueNextTaskWorker();
+
+        mockTaskManager.scheduleMoreWork();
+
+        verify(mockTaskManager, times(expectedNumberOfCalls)).createAndQueueNextTaskWorker();
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS));
+        assertThat(mockTaskManager.workTimer, notNullValue());
+    }
+
+    @Test
+    public void testScheduleMoreWork() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        mockTaskManager.countOfCurrentlyRunningTasks = 1;
+        int expectedNumberOfCalls = TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS - mockTaskManager.countOfCurrentlyRunningTasks;
+
+        doReturn(true).when(mockTaskManager).createAndQueueNextTaskWorker();
+
+        mockTaskManager.scheduleMoreWork();
+
+        //verify(mockTaskManager, times(expectedNumberOfCalls)).createAndQueueNextTaskWorker();
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(TaskManager.MAX_NUMBER_CONCURRENT_OPERATIONS));
+        assertThat(mockTaskManager.workTimer, notNullValue());
+    }
+
+    @Test
+    public void testScheduleMoreWorkCreateFailed() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        int initialRunningTaskCount = 1;
+        mockTaskManager.countOfCurrentlyRunningTasks = initialRunningTaskCount;
+
+        doReturn(false).when(mockTaskManager).createAndQueueNextTaskWorker();
+
+        mockTaskManager.scheduleMoreWork();
+
+        verify(mockTaskManager, times(1)).createAndQueueNextTaskWorker();
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(initialRunningTaskCount));
+        assertThat(mockTaskManager.workTimer, notNullValue());
+    }
+    //endregion
+
+    //region Test Create and Queue More Work
+    @Test
+    public void testCreateAndQueueNextTaskWorkerNoInternet() throws Exception {
+        String taskType = "taskT";
+        Manager mockManager = mock(Manager.class);
+        taskManager.registeredManagers.put(taskType, mockManager);
+
+        Set<String> taskTypes = taskManager.registeredManagers.keySet();
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setState(WorkItemState.READY);
+        workItem.setTaskType(taskType);
+
+        TaskWorker worker = new TaskWorker();
+
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        ConnectivityManager mockConnetivityManager = mock(ConnectivityManager.class);
+        taskManager.connectivityManager = mockConnetivityManager;
+
+        ExecutorService mockExecutorService = mock(ExecutorService.class);
+        taskManager.executorService = mockExecutorService;
+
+        NetworkInfo mockNetworkInfo = mock(NetworkInfo.class);
+        when(mockNetworkInfo.isConnected()).thenReturn(false);
+        when(mockConnetivityManager.getActiveNetworkInfo()).thenReturn(mockNetworkInfo);
+        when(mockDb.getNextWorkItemForTaskTypes(taskTypes, false)).thenReturn(workItem);
+        when(mockManager.taskWorkerForWorkItem(workItem)).thenReturn(worker);
+
+        boolean success = taskManager.createAndQueueNextTaskWorker();
+        assertThat(success, is(true));
+
+        ArgumentCaptor workItemCaptor = ArgumentCaptor.forClass(InternalWorkItem.class);
+        verify(mockDb).updateWorkItem((InternalWorkItem)workItemCaptor.capture());
+
+        InternalWorkItem updatedWorkItem = (InternalWorkItem)workItemCaptor.getValue();
+        assertThat(updatedWorkItem.getState(), is(WorkItemState.EXECUTING));
+
+        ArgumentCaptor taskWorkerCaptor = ArgumentCaptor.forClass(TaskWorker.class);
+        verify(mockExecutorService).execute((TaskWorker)taskWorkerCaptor.capture());
+
+        TaskWorker executedTaskWorker = (TaskWorker)taskWorkerCaptor.getValue();
+        assertThat(executedTaskWorker.taskFinishedDelegate, notNullValue());
+
+        verify(mockManager).taskWorkerForWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockDb).getNextWorkItemForTaskTypes(taskTypes, false);
+        verify(mockNetworkInfo).isConnected();
+        verify(mockConnetivityManager).getActiveNetworkInfo();
+    }
+
+    @Test
+    public void testCreateAndQueueNextTaskWorkerHasInternet() throws Exception {
+        String taskType = "taskT";
+        Manager mockManager = mock(Manager.class);
+        taskManager.registeredManagers.put(taskType, mockManager);
+
+        Set<String> taskTypes = taskManager.registeredManagers.keySet();
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setState(WorkItemState.READY);
+        workItem.setTaskType(taskType);
+
+        TaskWorker worker = new TaskWorker();
+
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        ConnectivityManager mockConnetivityManager = mock(ConnectivityManager.class);
+        taskManager.connectivityManager = mockConnetivityManager;
+
+        ExecutorService mockExecutorService = mock(ExecutorService.class);
+        taskManager.executorService = mockExecutorService;
+
+        NetworkInfo mockNetworkInfo = mock(NetworkInfo.class);
+        when(mockNetworkInfo.isConnected()).thenReturn(true);
+        when(mockConnetivityManager.getActiveNetworkInfo()).thenReturn(mockNetworkInfo);
+        when(mockDb.getNextWorkItemForTaskTypes(taskTypes, true)).thenReturn(workItem);
+        when(mockManager.taskWorkerForWorkItem(workItem)).thenReturn(worker);
+
+        boolean success = taskManager.createAndQueueNextTaskWorker();
+        assertThat(success, is(true));
+
+        ArgumentCaptor workItemCaptor = ArgumentCaptor.forClass(InternalWorkItem.class);
+        verify(mockDb).updateWorkItem((InternalWorkItem)workItemCaptor.capture());
+
+        InternalWorkItem updatedWorkItem = (InternalWorkItem)workItemCaptor.getValue();
+        assertThat(updatedWorkItem.getState(), is(WorkItemState.EXECUTING));
+
+        ArgumentCaptor taskWorkerCaptor = ArgumentCaptor.forClass(TaskWorker.class);
+        verify(mockExecutorService).execute((TaskWorker)taskWorkerCaptor.capture());
+
+        TaskWorker executedTaskWorker = (TaskWorker)taskWorkerCaptor.getValue();
+        assertThat(executedTaskWorker.taskFinishedDelegate, notNullValue());
+
+        verify(mockManager).taskWorkerForWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockDb).getNextWorkItemForTaskTypes(taskTypes, true);
+        verify(mockNetworkInfo).isConnected();
+        verify(mockConnetivityManager).getActiveNetworkInfo();
+    }
+
+    @Test
+    public void testCreateAndQueueNextTaskWorkerNoWorkItem() throws Exception {
+        String taskType = "taskT";
+        Manager mockManager = mock(Manager.class);
+        taskManager.registeredManagers.put(taskType, mockManager);
+
+        Set<String> taskTypes = taskManager.registeredManagers.keySet();
+
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        taskManager.workItemDatabaseHelper = mockDb;
+
+        ConnectivityManager mockConnetivityManager = mock(ConnectivityManager.class);
+        taskManager.connectivityManager = mockConnetivityManager;
+
+        ExecutorService mockExecutorService = mock(ExecutorService.class);
+        taskManager.executorService = mockExecutorService;
+
+        NetworkInfo mockNetworkInfo = mock(NetworkInfo.class);
+        when(mockNetworkInfo.isConnected()).thenReturn(false);
+        when(mockConnetivityManager.getActiveNetworkInfo()).thenReturn(mockNetworkInfo);
+        when(mockDb.getNextWorkItemForTaskTypes(taskTypes, false)).thenReturn(null);
+
+        boolean success = taskManager.createAndQueueNextTaskWorker();
+        assertThat(success, is(false));
+
+        verify(mockDb, never()).updateWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockExecutorService, never()).execute(Matchers.any(TaskWorker.class));
+
+        verify(mockManager, never()).taskWorkerForWorkItem(Matchers.any(InternalWorkItem.class));
+        verify(mockDb).getNextWorkItemForTaskTypes(taskTypes, false);
+        verify(mockNetworkInfo).isConnected();
+        verify(mockConnetivityManager).getActiveNetworkInfo();
+    }
+
+    //endregion
+
+    //region Test TaskFinished Interface
+    @Test
+    public void testTaskFinishedSuccess() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        int initialTasksRunning = 3;
+        mockTaskManager.countOfCurrentlyRunningTasks = initialTasksRunning;
+
+        boolean success = true;
+        InternalWorkItem workItem = new InternalWorkItem();
+        TaskWorker worker = new TaskWorker();
+        worker.workItem = workItem;
+
+        mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
+
+        verify(mockDb).deleteWorkItem(workItem);
+        verify(mockTaskManager).scheduleMoreWork();
+
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(initialTasksRunning-1));
+    }
+
+    @Test
+    public void testTaskFinishedFailureRetryLessThanMax() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        int initialTasksRunning = 43;
+        mockTaskManager.countOfCurrentlyRunningTasks = initialTasksRunning;
+
+
+        boolean success = false;
+        int maxRetryCount = 30;
+        int currentRetryCount = 20;
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setMaxRetries(maxRetryCount);
+        workItem.setRetryCount(currentRetryCount);
+        workItem.setState(WorkItemState.EXECUTING);
+        TaskWorker worker = new TaskWorker();
+        worker.workItem = workItem;
+
+        mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
+
+        ArgumentCaptor captor = ArgumentCaptor.forClass(InternalWorkItem.class);
+
+        verify(mockDb).updateWorkItem((InternalWorkItem) captor.capture());
+
+        InternalWorkItem newWorkItem = (InternalWorkItem)captor.getValue();
+        assertThat(newWorkItem.getRetryCount(), is(currentRetryCount+1));
+        assertThat(newWorkItem.getState(), is(WorkItemState.READY));
+
+        verify(mockTaskManager).scheduleMoreWork();
+
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(initialTasksRunning-1));
+    }
+
+    @Test
+    public void testTaskFinishedFailureRetryMaxShouldNotHold() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        int initialTasksRunning = 33;
+        mockTaskManager.countOfCurrentlyRunningTasks = initialTasksRunning;
+
+
+        String taskType = "taskt";
+        Manager mockManager = mock(Manager.class);
+        taskManager.registeredManagers.put(taskType, mockManager);
+
+        boolean success = false;
+        int maxRetryCount = 30;
+        int currentRetryCount = 29;
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setMaxRetries(maxRetryCount);
+        workItem.setTaskType(taskType);
+        workItem.setRetryCount(currentRetryCount);
+        workItem.setState(WorkItemState.EXECUTING);
+        workItem.setShouldHold(false);
+        TaskWorker worker = new TaskWorker();
+        worker.workItem = workItem;
+
+        mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
+
+
+        verify(mockManager).workItemDidFail(workItem);
+        verify(mockDb).deleteWorkItem(workItem);
+        verify(mockTaskManager).scheduleMoreWork();
+
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(initialTasksRunning-1));
+    }
+
+    @Test
+    public void testTaskFinishedFailureRetryMaxShouldHold() throws Exception {
+        TaskManager mockTaskManager = spy(taskManager);
+        WorkItemDatabaseHelper mockDb = mock(WorkItemDatabaseHelper.class);
+        mockTaskManager.workItemDatabaseHelper = mockDb;
+
+        int initialTasksRunning = 63;
+        mockTaskManager.countOfCurrentlyRunningTasks = initialTasksRunning;
+
+        String taskType = "taskt";
+        Manager mockManager = mock(Manager.class);
+        taskManager.registeredManagers.put(taskType, mockManager);
+
+        boolean success = false;
+        int maxRetryCount = 30;
+        int currentRetryCount = 29;
+
+        InternalWorkItem workItem = new InternalWorkItem();
+        workItem.setMaxRetries(maxRetryCount);
+        workItem.setTaskType(taskType);
+        workItem.setRetryCount(currentRetryCount);
+        workItem.setState(WorkItemState.EXECUTING);
+        workItem.setShouldHold(true);
+        TaskWorker worker = new TaskWorker();
+        worker.workItem = workItem;
+
+        mockTaskManager.taskWorkerFinishedSuccessfully(worker, success);
+
+        ArgumentCaptor captor = ArgumentCaptor.forClass(InternalWorkItem.class);
+
+        verify(mockDb).updateWorkItem((InternalWorkItem) captor.capture());
+
+        InternalWorkItem newWorkItem = (InternalWorkItem)captor.getValue();
+        assertThat(newWorkItem.getRetryCount(), is(currentRetryCount+1));
+        assertThat(newWorkItem.getState(), is(WorkItemState.HOLDING));
+        verify(mockManager).workItemDidFail(workItem);
+        verify(mockTaskManager).scheduleMoreWork();
+
+        assertThat(mockTaskManager.countOfCurrentlyRunningTasks, is(initialTasksRunning-1));
+    }
+
     //endregion
 }

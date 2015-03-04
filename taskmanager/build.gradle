@@ -1,5 +1,11 @@
 apply plugin: 'com.android.library'
 
+ext {
+    PUBLISH_GROUP_ID = 'com.zackliston'
+    PUBLISH_ARTIFACT_ID = 'taskmanager'
+    PUBLISH_VERSION = '0.0.1'
+}
+
 android {
     compileSdkVersion 21
     buildToolsVersion "21.1.2"
@@ -26,3 +32,6 @@ dependencies {
     testCompile "org.mockito:mockito-core:1.9.5"
     testCompile "org.robolectric:robolectric:2.+"
 }
+
+
+apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'

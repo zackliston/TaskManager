@@ -26,23 +26,23 @@ import java.util.concurrent.TimeUnit;
  */
 public class TaskManager implements TaskFinishedInterface {
     //region constants
-    protected static final int MAX_NUMBER_CONCURRENT_OPERATIONS = 4;
+    static final int MAX_NUMBER_CONCURRENT_OPERATIONS = 4;
     //endregion
 
     //region Variables
-    protected WorkItemDatabaseHelper workItemDatabaseHelper;
-    protected ExecutorService executorService;
-    protected ExecutorService backgroundService;
-    protected Handler mainHandler;
-    protected BroadcastReceiver broadcastReceiver;
-    protected Timer workTimer;
+    WorkItemDatabaseHelper workItemDatabaseHelper;
+    ExecutorService executorService;
+    ExecutorService backgroundService;
+    Handler mainHandler;
+    BroadcastReceiver broadcastReceiver;
+    Timer workTimer;
 
-    protected ConnectivityManager connectivityManager;
-    protected HashMap<String, Manager> registeredManagers;
+    ConnectivityManager connectivityManager;
+    HashMap<String, Manager> registeredManagers;
 
-    protected boolean isRunning;
-    protected boolean isWaitingForStopCompletion;
-    protected int countOfCurrentlyRunningTasks;
+    boolean isRunning;
+    boolean isWaitingForStopCompletion;
+    int countOfCurrentlyRunningTasks;
     //endregion
 
     //region Initialization
@@ -83,7 +83,7 @@ public class TaskManager implements TaskFinishedInterface {
     //endregion
 
     //region Getters/Setters
-    protected void setIsWaitingForStopCompletion(boolean isWaitingForStopCompletion) {
+    void setIsWaitingForStopCompletion(boolean isWaitingForStopCompletion) {
         this.isWaitingForStopCompletion = isWaitingForStopCompletion;
 
         if (!isWaitingForStopCompletion && isRunning) {
@@ -277,7 +277,7 @@ public class TaskManager implements TaskFinishedInterface {
     //endregion
 
     //region Scheduling Work
-    protected void scheduleMoreWork() {
+    void scheduleMoreWork() {
         if (workTimer != null) {
             workTimer.cancel();
         }
@@ -300,7 +300,7 @@ public class TaskManager implements TaskFinishedInterface {
         workTimer.schedule(new ScheduleWorkFromTimer(), 5000);
     }
 
-    protected boolean createAndQueueNextTaskWorker() {
+    boolean createAndQueueNextTaskWorker() {
         boolean isConnected = false;
         if (connectivityManager != null) {
             NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
@@ -381,7 +381,7 @@ public class TaskManager implements TaskFinishedInterface {
     //endregion
 
     //region Test Helpers
-    protected static void tearDownForTest() {
+    static void tearDownForTest() {
         ourInstance = null;
     }
     //endregion

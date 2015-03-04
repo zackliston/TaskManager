@@ -14,39 +14,39 @@ public abstract class TaskWorker implements Runnable
     //endregion
 
     //region Getters/Setters
-    public InternalWorkItem workItem() {
+    protected InternalWorkItem workItem() {
         return workItem;
     }
 
-    public void setWorkItem(InternalWorkItem workItem) {
+    protected void setWorkItem(InternalWorkItem workItem) {
         this.workItem = workItem;
     }
 
-    public TaskFinishedInterface taskFinishedDelegate() {
+    protected TaskFinishedInterface taskFinishedDelegate() {
         return taskFinishedDelegate;
     }
 
-    public void setTaskFinishedDelegate(TaskFinishedInterface taskFinishedDelegate) {
+    protected void setTaskFinishedDelegate(TaskFinishedInterface taskFinishedDelegate) {
         this.taskFinishedDelegate = taskFinishedDelegate;
     }
 
-    public boolean isTaskFailed() {
+    protected boolean isTaskFailed() {
         return taskFailed;
     }
 
-    public void setTaskFailed(boolean taskFailed) {
+    protected void setTaskFailed(boolean taskFailed) {
         this.taskFailed = taskFailed;
     }
 
-    public boolean isFinalAttempt() {
+    protected boolean isFinalAttempt() {
         return isFinalAttempt;
     }
 
-    public void setFinalAttempt(boolean isFinalAttempt) {
+    protected void setFinalAttempt(boolean isFinalAttempt) {
         this.isFinalAttempt = isFinalAttempt;
     }
 
-    public boolean isCancelled() {
+    protected boolean isCancelled() {
         return Thread.currentThread().isInterrupted();
     }
 
@@ -57,7 +57,7 @@ public abstract class TaskWorker implements Runnable
         this.isFinalAttempt = (workItem.getRetryCount() >= (workItem.getMaxRetries()-1));
     }
 
-    public void taskFinishedWasSuccessful(boolean wasSuccessful) {
+    protected void taskFinishedWasSuccessful(boolean wasSuccessful) {
         if (!hasCalledTaskFinished) {
             hasCalledTaskFinished = true;
             taskFinishedDelegate.taskWorkerFinishedSuccessfully(this, wasSuccessful);

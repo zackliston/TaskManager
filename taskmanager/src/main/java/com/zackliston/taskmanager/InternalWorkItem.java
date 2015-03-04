@@ -31,7 +31,7 @@ public class InternalWorkItem
         return id;
     }
 
-    protected void setId(int id) {
+    void setId(int id) {
         this.id = id;
     }
 
@@ -39,15 +39,15 @@ public class InternalWorkItem
         return taskType;
     }
 
-    protected void setTaskType(String taskType) {
+    void setTaskType(String taskType) {
         this.taskType = taskType;
     }
 
-    protected String getData() {
+    String getData() {
         return data;
     }
 
-    protected void setData(String data) {
+    void setData(String data) {
         this.data = data;
         this.jsonData = null;
     }
@@ -63,7 +63,7 @@ public class InternalWorkItem
         return jsonData;
     }
 
-    protected void setJsonData(JSONObject jsonData) {
+    void setJsonData(JSONObject jsonData) {
         this.jsonData = jsonData;
         if (jsonData != null) {
             this.data = jsonData.toString();
@@ -76,7 +76,7 @@ public class InternalWorkItem
         return state;
     }
 
-    protected void setState(WorkItemState state) {
+    void setState(WorkItemState state) {
         this.state = state;
     }
 
@@ -84,7 +84,7 @@ public class InternalWorkItem
         return majorPriority;
     }
 
-    protected void setMajorPriority(int majorPriority) {
+    void setMajorPriority(int majorPriority) {
         this.majorPriority = majorPriority;
     }
 
@@ -92,7 +92,7 @@ public class InternalWorkItem
         return minorPriority;
     }
 
-    protected void setMinorPriority(int minorPriority) {
+    void setMinorPriority(int minorPriority) {
         this.minorPriority = minorPriority;
     }
 
@@ -100,7 +100,7 @@ public class InternalWorkItem
         return retryCount;
     }
 
-    protected void setRetryCount(int retryCount) {
+    void setRetryCount(int retryCount) {
         this.retryCount = retryCount;
     }
 
@@ -108,7 +108,7 @@ public class InternalWorkItem
         return timeCreated;
     }
 
-    protected void setTimeCreated(int timeCreated) {
+    void setTimeCreated(int timeCreated) {
         this.timeCreated = timeCreated;
     }
 
@@ -116,7 +116,7 @@ public class InternalWorkItem
         return requiresInternet;
     }
 
-    protected void setRequiresInternet(boolean requiresInternet) {
+    void setRequiresInternet(boolean requiresInternet) {
         this.requiresInternet = requiresInternet;
     }
 
@@ -124,7 +124,7 @@ public class InternalWorkItem
         return maxRetries;
     }
 
-    protected void setMaxRetries(int maxRetries) {
+    void setMaxRetries(int maxRetries) {
         this.maxRetries = maxRetries;
     }
 
@@ -132,7 +132,7 @@ public class InternalWorkItem
         return shouldHold;
     }
 
-    protected void setShouldHold(boolean shouldHold) {
+    void setShouldHold(boolean shouldHold) {
         this.shouldHold = shouldHold;
     }
     //endregion

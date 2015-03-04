@@ -5,7 +5,7 @@ package com.zackliston.taskmanager;
  */
 public abstract class Manager
 {
-    public abstract TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem);
+    protected abstract TaskWorker taskWorkerForWorkItem(InternalWorkItem workItem);
 
-    public void workItemDidFail(InternalWorkItem workItem) {}
+    protected void workItemDidFail(InternalWorkItem workItem) {}
 }

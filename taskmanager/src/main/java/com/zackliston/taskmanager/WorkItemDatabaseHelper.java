@@ -40,7 +40,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
     //endregion
 
     //region Initialize
-    protected WorkItemDatabaseHelper(Context context)
+    WorkItemDatabaseHelper(Context context)
     {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -79,7 +79,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
     //endregion
 
     //region Protected Methods
-    protected InternalWorkItem getNextWorkItemForTaskTypes(Set<String> taskTypes, boolean hasInternet) {
+    InternalWorkItem getNextWorkItemForTaskTypes(Set<String> taskTypes, boolean hasInternet) {
         if (taskTypes.size() == 0) {
             return null;
         }
@@ -108,7 +108,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return workItem;
     }
 
-    protected boolean addNewWorkItem(InternalWorkItem workItem) {
+    boolean addNewWorkItem(InternalWorkItem workItem) {
         int requiresInternet = (workItem.isRequiresInternet()) ? 1 : 0;
         int shouldHold = (workItem.isShouldHold()) ? 1 : 0;
 
@@ -134,7 +134,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return  (returnValue == -1) ? false : true;
     }
 
-    protected boolean updateWorkItem(InternalWorkItem workItem) {
+    boolean updateWorkItem(InternalWorkItem workItem) {
         int requiresInternet = (workItem.isRequiresInternet()) ? 1 : 0;
         int shouldHold = (workItem.isShouldHold()) ? 1 : 0;
 
@@ -161,19 +161,19 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return (numberOfRowsAffected == 1) ? true : false;
     }
 
-    protected boolean deleteWorkItem(InternalWorkItem workItem) {
+    boolean deleteWorkItem(InternalWorkItem workItem) {
         String[] args = {workItem.getId()+""};
         int numberOfRowsAffected = getWritableDatabase().delete(WORK_ITEM_TABLE_NAME, DEFAULT_ID_COLUMN + " == ?", args);
 
         return (numberOfRowsAffected == 1) ? true : false;
     }
 
-    protected void deleteWorkItemsWithTaskType(String taskType) {
+    void deleteWorkItemsWithTaskType(String taskType) {
         String[] args = {taskType};
         getWritableDatabase().delete(WORK_ITEM_TABLE_NAME, TASK_TYPE_COLUMN + " == ?", args);
     }
 
-    protected void changePriorityOfTaskType(String taskType, int newMajorPriority) {
+    void changePriorityOfTaskType(String taskType, int newMajorPriority) {
         String[] args = {taskType};
 
         ContentValues values = new ContentValues();
@@ -182,7 +182,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, TASK_TYPE_COLUMN + " == ?", args);
     }
 
-    protected void restartHoldingTasks() {
+    void restartHoldingTasks() {
         String[] args = {"" + WorkItemState.HOLDING.value()};
 
         ContentValues values = new ContentValues();
@@ -191,7 +191,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, STATE_COLUMN + " == ?", args);
     }
 
-    protected void restartExecutingTasks() {
+    void restartExecutingTasks() {
         String[] args = {"" + WorkItemState.EXECUTING.value()};
 
         ContentValues values = new ContentValues();
@@ -200,7 +200,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         getWritableDatabase().update(WORK_ITEM_TABLE_NAME, values, STATE_COLUMN + " == ?", args);
     }
 
-    protected int countOfWorkItemsWithTaskType(String taskType) {
+    int countOfWorkItemsWithTaskType(String taskType) {
         String[] args = {taskType};
 
         Cursor cursor = getReadableDatabase().rawQuery("select count(*) from " + WORK_ITEM_TABLE_NAME + " where " + TASK_TYPE_COLUMN + " == ? ",args);
@@ -211,7 +211,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return count;
     }
 
-    protected int countOfWorkItemsNotHolding() {
+    int countOfWorkItemsNotHolding() {
         String[] args = {"" + WorkItemState.HOLDING.value()};
 
         Cursor cursor = getReadableDatabase().rawQuery("select count(*) from " + WORK_ITEM_TABLE_NAME + " where " + STATE_COLUMN + " != ? ",args);
@@ -221,7 +221,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         return count;
     }
 
-    protected void resetDatabase() {
+    void resetDatabase() {
         SQLiteDatabase db = getWritableDatabase();
 
         db.execSQL("DROP TABLE " + WORK_ITEM_TABLE_NAME);

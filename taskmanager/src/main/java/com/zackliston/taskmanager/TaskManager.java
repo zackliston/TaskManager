@@ -50,7 +50,9 @@ public class TaskManager implements TaskFinishedInterface {
     public static TaskManager getInstance(Context context) {
         if (ourInstance == null) {
             synchronized (TaskManager.class) {
-                ourInstance = new TaskManager(context);
+                if (ourInstance == null) {
+                    ourInstance = new TaskManager(context);
+                }
             }
         }
         return ourInstance;

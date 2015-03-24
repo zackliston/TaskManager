@@ -43,7 +43,7 @@ public class InternalWorkItem
         this.taskType = taskType;
     }
 
-    String getData() {
+    public String getData() {
         return data;
     }
 

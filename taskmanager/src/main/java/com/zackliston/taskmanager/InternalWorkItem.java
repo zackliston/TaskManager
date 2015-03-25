@@ -47,7 +47,7 @@ public class InternalWorkItem
         return data;
     }
 
-    public void setData(String data) {
+    void setData(String data) {
         this.data = data;
         this.jsonData = null;
     }

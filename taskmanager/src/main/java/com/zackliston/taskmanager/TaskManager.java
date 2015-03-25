@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class TaskManager implements TaskFinishedInterface {
     //region constants
     static final int MAX_NUMBER_CONCURRENT_OPERATIONS = 4;
+    public static final int MAJOR_PRIORITY_USER_INITIATED = 100000000;
     //endregion
 
     //region Variables

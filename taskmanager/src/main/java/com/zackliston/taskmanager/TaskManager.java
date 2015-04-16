@@ -121,9 +121,9 @@ public class TaskManager implements TaskFinishedInterface {
                 } catch (InterruptedException exception) {
                     System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
                 } finally {
+                    executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
                     setIsWaitingForStopCompletion(false);
                     if (completionBlock != null) {
-                        executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
                         mainHandler.post(completionBlock);
                     }
                 }
@@ -145,8 +145,8 @@ public class TaskManager implements TaskFinishedInterface {
         } catch (InterruptedException exception) {
             System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
         } finally {
+            executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
             setIsWaitingForStopCompletion(false);
-            Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
         }
     }
 

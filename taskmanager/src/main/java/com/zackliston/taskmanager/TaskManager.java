@@ -304,6 +304,10 @@ public class TaskManager implements TaskFinishedInterface {
     }
 
     boolean createAndQueueNextTaskWorker() {
+        if (!isRunning || isWaitingForStopCompletion) {
+            return false;
+        }
+
         boolean isConnected = false;
         if (connectivityManager != null) {
             NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();

@@ -14,6 +14,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.model.RunnerBuilder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -45,7 +46,7 @@ public class TaskManagerTest {
         ConnectivityManager mockConnectivityManager = mock(ConnectivityManager.class);
 
         when(mockContext.getSystemService(mockContext.CONNECTIVITY_SERVICE)).thenReturn(mockConnectivityManager);
-        taskManager = TaskManager.getInstance(mockContext);
+        taskManager = new TaskManager(Robolectric.application);
     }
 
     @After

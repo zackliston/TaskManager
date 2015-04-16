@@ -53,13 +53,14 @@ public class TaskManager implements TaskFinishedInterface {
             synchronized (TaskManager.class) {
                 if (ourInstance == null) {
                     ourInstance = new TaskManager(context);
+                    ourInstance.workItemDatabaseHelper.restartExecutingTasks();
                 }
             }
         }
         return ourInstance;
     }
 
-    private TaskManager(Context context) {
+    TaskManager(Context context) {
         workItemDatabaseHelper = new WorkItemDatabaseHelper(context);
         executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
         backgroundService = Executors.newCachedThreadPool();
@@ -74,7 +75,7 @@ public class TaskManager implements TaskFinishedInterface {
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                synchronized (ourInstance) {
+                synchronized (this) {
                     scheduleMoreWork();
                 }
             }
@@ -93,7 +94,7 @@ public class TaskManager implements TaskFinishedInterface {
             backgroundService.execute(new Runnable() {
                 @Override
                 public void run() {
-                    synchronized (ourInstance) {
+                    synchronized (this) {
                         scheduleMoreWork();
                     }
                 }

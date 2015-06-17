@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.Context;
+import android.util.Log;
+
 import com.zackliston.taskmanager.InternalWorkItem;
 
 import java.util.Arrays;
@@ -126,7 +128,7 @@ public class WorkItemDatabaseHelper extends SQLiteOpenHelper
         if (workItem.getState() != null) {
             values.put(STATE_COLUMN, workItem.getState().value());
         } else {
-            System.out.println("You must have a state for the work item before adding it.");
+            Log.e("TaskManager", "You must have a state for the work item before adding it.");
             return false;
         }
 

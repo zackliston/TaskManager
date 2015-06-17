@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
+import android.util.Log;
 
 
 import org.json.JSONObject;
@@ -144,7 +145,7 @@ public class TaskManager implements TaskFinishedInterface {
         try {
             executorService.awaitTermination(30, TimeUnit.SECONDS);
         } catch (InterruptedException exception) {
-            System.out.println("Error stopping TaskManager asynchronously " + exception.toString());
+            Log.e("TaskManager", "Error stopping TaskManager asynchronously " + exception.toString());
         } finally {
             executorService = Executors.newFixedThreadPool(MAX_NUMBER_CONCURRENT_OPERATIONS);
             setIsWaitingForStopCompletion(false);
